@@ -154,7 +154,7 @@ npm run build    # 产物输出到 backend/src/main/resources/static
 
 ```bash
 cd backend
-mvn test          # 62 个用例
+mvn test          # 64 个用例
 ```
 
 覆盖率（JaCoCo，报告见 `backend/target/site/jacoco/index.html`）：
