@@ -179,7 +179,11 @@
       </div>
       <el-table :data="executions" size="small" border stripe>
         <el-table-column prop="id" label="ID" width="46" />
-        <el-table-column prop="triggerType" label="触发" width="86" />
+        <el-table-column label="触发" width="86">
+          <template #default="{ row }">
+            {{ row.triggerType === 'RETRY' ? `RETRY#${row.retryCount || 1}` : row.triggerType }}
+          </template>
+        </el-table-column>
         <el-table-column label="节点" width="78">
           <template #default="{ row }">{{ row.nodeId || '-' }}</template>
         </el-table-column>

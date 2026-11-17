@@ -51,15 +51,20 @@ public class AlertService {
         if (consecutive < threshold) {
             return;
         }
-        // 去重键按时间片取整（5 分钟一格），配合 uk_alert_dedup 唯一约束做最终裁决：
-        // 多个执行并发转终态时，预检查可能同时通过，只有抢到唯一键的那条能落库。
-        long bucket = System.currentTimeMillis() / (DEDUP_MINUTES * 60_000L);
-        String dedupKey = task.getId() + ":" + bucket;
-        Long recent = alertRecordMapper.selectCount(new LambdaQueryWrapper<SchedAlertRecord>()
-                .eq(SchedAlertRecord::getDedupKey, dedupKey));
-        if (recent != null && recent > 0) {
+        // 滑动窗口去重：距该任务上一条告警不足 5 分钟就跳过。
+        // 用最近一条记录的时间判断，而不是按时间片取整，避免跨片边界时两次告警只隔几秒。
+        SchedAlertRecord latest = alertRecordMapper.selectOne(new LambdaQueryWrapper<SchedAlertRecord>()
+                .eq(SchedAlertRecord::getTaskId, task.getId())
+                .orderByDesc(SchedAlertRecord::getId)
+                .last("LIMIT 1"));
+        if (latest != null && latest.getTriggeredAt() != null
+                && latest.getTriggeredAt().isAfter(LocalDateTime.now().minusMinutes(DEDUP_MINUTES))) {
+            log.debug("告警去重命中滑动窗口：task={} 上次告警于 {}", task.getId(), latest.getTriggeredAt());
             return;
         }
+        // 时间片唯一键只做并发兜底：多条执行同时转终态时，让数据库裁决谁写入
+        long bucket = System.currentTimeMillis() / (DEDUP_MINUTES * 60_000L);
+        String dedupKey = task.getId() + ":" + bucket;
 
         String channel = config == null || config.getNotifyChannel() == null
                 ? "LOG" : config.getNotifyChannel();

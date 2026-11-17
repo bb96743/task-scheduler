@@ -53,6 +53,14 @@ class AlertServiceTest {
         return e;
     }
 
+    private SchedAlertRecord alertAt(int minutesAgo) {
+        SchedAlertRecord r = new SchedAlertRecord();
+        r.setId(9L);
+        r.setTaskId(1L);
+        r.setTriggeredAt(java.time.LocalDateTime.now().minusMinutes(minutesAgo));
+        return r;
+    }
+
     private List<SchedTaskExecution> executions(String... statuses) {
         List<SchedTaskExecution> list = new ArrayList<>();
         long id = 100;
@@ -68,7 +76,6 @@ class AlertServiceTest {
     void shouldAlertWhenConsecutiveFailuresReachThreshold() {
         when(alertConfigMapper.selectOne(any())).thenReturn(null);
         when(executionMapper.selectList(any())).thenReturn(executions("FAILED", "FAILED", "FAILED"));
-        when(alertRecordMapper.selectCount(any())).thenReturn(0L);
         when(alertRecordMapper.insert(any(SchedAlertRecord.class))).thenReturn(1);
 
         alertService.onExecutionFailed(task(), failedExec(100));
@@ -83,7 +90,6 @@ class AlertServiceTest {
     void shouldSwallowDuplicateKeyRace() {
         when(alertConfigMapper.selectOne(any())).thenReturn(null);
         when(executionMapper.selectList(any())).thenReturn(executions("FAILED", "FAILED", "FAILED"));
-        when(alertRecordMapper.selectCount(any())).thenReturn(0L);
         when(alertRecordMapper.insert(any(SchedAlertRecord.class)))
                 .thenThrow(new DuplicateKeyException("uk_alert_dedup"));
 
@@ -114,13 +120,25 @@ class AlertServiceTest {
     }
 
     @Test
-    void shouldDeduplicateRecentAlert() {
+    void shouldDeduplicateWhenLastAlertWithinWindow() {
         when(alertConfigMapper.selectOne(any())).thenReturn(null);
         when(executionMapper.selectList(any())).thenReturn(executions("FAILED", "FAILED", "FAILED"));
-        when(alertRecordMapper.selectCount(any())).thenReturn(1L);
+        when(alertRecordMapper.selectOne(any())).thenReturn(alertAt(2));
 
         alertService.onExecutionFailed(task(), failedExec(100));
 
         verify(alertRecordMapper, never()).insert(any(SchedAlertRecord.class));
+    }
+
+    @Test
+    void shouldAlertAgainAfterWindowExpires() {
+        when(alertConfigMapper.selectOne(any())).thenReturn(null);
+        when(executionMapper.selectList(any())).thenReturn(executions("FAILED", "FAILED", "FAILED"));
+        when(alertRecordMapper.selectOne(any())).thenReturn(alertAt(6));
+        when(alertRecordMapper.insert(any(SchedAlertRecord.class))).thenReturn(1);
+
+        alertService.onExecutionFailed(task(), failedExec(100));
+
+        verify(alertRecordMapper).insert(any(SchedAlertRecord.class));
     }
 }
