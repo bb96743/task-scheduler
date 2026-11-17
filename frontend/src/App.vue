@@ -50,7 +50,8 @@
           </el-table-column>
           <el-table-column label="操作" width="210">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="run(row)">立即执行</el-button>
+              <el-button link type="primary" size="small" :disabled="row.status !== 'ENABLED'"
+                         @click="run(row)">立即执行</el-button>
               <el-button link type="warning" size="small" @click="toggle(row)">
                 {{ row.status === 'ENABLED' ? '停用' : '启用' }}
               </el-button>
@@ -166,7 +167,7 @@
     </el-dialog>
 
     <!-- 执行记录 -->
-    <el-drawer v-model="execVisible" :title="`执行记录 · ${currentTask?.taskName || ''}`" size="78%">
+    <el-drawer v-model="execVisible" :title="`执行记录 · ${currentTask?.taskName || ''}`" size="86%">
       <div class="drawer-toolbar">
         <el-select v-model="execFilter" size="small" style="width: 140px" @change="loadExecutions">
           <el-option label="全部状态" value="ALL" />
@@ -179,6 +180,9 @@
       <el-table :data="executions" size="small" border stripe>
         <el-table-column prop="id" label="ID" width="46" />
         <el-table-column prop="triggerType" label="触发" width="86" />
+        <el-table-column label="节点" width="78">
+          <template #default="{ row }">{{ row.nodeId || '-' }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="statusType(row.status)" size="small" style="white-space: nowrap">{{ row.status }}</el-tag>
