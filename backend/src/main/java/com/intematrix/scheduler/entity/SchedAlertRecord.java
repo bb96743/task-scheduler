@@ -21,5 +21,7 @@ public class SchedAlertRecord {
     private Integer consecutiveFail;
     private String message;
     private String notifyChannel;
+    /** 去重键：taskId + 5 分钟时间片，由唯一约束保证并发下只落一条。 */
+    private String dedupKey;
     private LocalDateTime triggeredAt;
 }

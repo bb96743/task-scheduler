@@ -103,7 +103,9 @@ CREATE TABLE sched_alert_record (
     consecutive_fail INT          NOT NULL,
     message         VARCHAR(1000),
     notify_channel  VARCHAR(64),
-    triggered_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+    dedup_key       VARCHAR(64)   NOT NULL,
+    triggered_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_alert_dedup UNIQUE (dedup_key)
 );
 CREATE INDEX idx_alert_task ON sched_alert_record (task_id, triggered_at);
 

@@ -106,8 +106,10 @@ CREATE TABLE sched_alert_record (
     consecutive_fail INT          NOT NULL,
     message         VARCHAR(1000),
     notify_channel  VARCHAR(64),
+    dedup_key       VARCHAR(64)   NOT NULL,
     triggered_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
-    KEY idx_alert_task (task_id, triggered_at)
+    KEY idx_alert_task (task_id, triggered_at),
+    UNIQUE KEY uk_alert_dedup (dedup_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='告警记录';
 
 -- 7. 重试队列

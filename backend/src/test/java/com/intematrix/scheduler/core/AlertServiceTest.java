@@ -9,13 +9,17 @@ import com.intematrix.scheduler.mapper.SchedAlertRecordMapper;
 import com.intematrix.scheduler.mapper.SchedTaskExecutionMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -69,7 +73,22 @@ class AlertServiceTest {
 
         alertService.onExecutionFailed(task(), failedExec(100));
 
-        verify(alertRecordMapper).insert(any(SchedAlertRecord.class));
+        ArgumentCaptor<SchedAlertRecord> captor = ArgumentCaptor.forClass(SchedAlertRecord.class);
+        verify(alertRecordMapper).insert(captor.capture());
+        // 去重键必须是 taskId + 5 分钟时间片，唯一约束才能挡住并发重复写入
+        assertThat(captor.getValue().getDedupKey()).startsWith("1:");
+    }
+
+    @Test
+    void shouldSwallowDuplicateKeyRace() {
+        when(alertConfigMapper.selectOne(any())).thenReturn(null);
+        when(executionMapper.selectList(any())).thenReturn(executions("FAILED", "FAILED", "FAILED"));
+        when(alertRecordMapper.selectCount(any())).thenReturn(0L);
+        when(alertRecordMapper.insert(any(SchedAlertRecord.class)))
+                .thenThrow(new DuplicateKeyException("uk_alert_dedup"));
+
+        assertThatCode(() -> alertService.onExecutionFailed(task(), failedExec(100)))
+                .doesNotThrowAnyException();
     }
 
     @Test

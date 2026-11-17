@@ -9,6 +9,7 @@ import com.intematrix.scheduler.mapper.SchedAlertConfigMapper;
 import com.intematrix.scheduler.mapper.SchedAlertRecordMapper;
 import com.intematrix.scheduler.mapper.SchedTaskExecutionMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -50,11 +51,12 @@ public class AlertService {
         if (consecutive < threshold) {
             return;
         }
-        // 去重：5 分钟内已有告警则不再重复写
-        LocalDateTime since = LocalDateTime.now().minusMinutes(DEDUP_MINUTES);
+        // 去重键按时间片取整（5 分钟一格），配合 uk_alert_dedup 唯一约束做最终裁决：
+        // 多个执行并发转终态时，预检查可能同时通过，只有抢到唯一键的那条能落库。
+        long bucket = System.currentTimeMillis() / (DEDUP_MINUTES * 60_000L);
+        String dedupKey = task.getId() + ":" + bucket;
         Long recent = alertRecordMapper.selectCount(new LambdaQueryWrapper<SchedAlertRecord>()
-                .eq(SchedAlertRecord::getTaskId, task.getId())
-                .ge(SchedAlertRecord::getTriggeredAt, since));
+                .eq(SchedAlertRecord::getDedupKey, dedupKey));
         if (recent != null && recent > 0) {
             return;
         }
@@ -66,10 +68,16 @@ public class AlertService {
         record.setExecutionId(execution.getId());
         record.setConsecutiveFail(consecutive);
         record.setNotifyChannel(channel);
+        record.setDedupKey(dedupKey);
         record.setMessage("任务 [" + task.getTaskName() + "] 连续失败 " + consecutive
                 + " 次，已触发告警（阈值 " + threshold + "）");
         record.setTriggeredAt(LocalDateTime.now());
-        alertRecordMapper.insert(record);
+        try {
+            alertRecordMapper.insert(record);
+        } catch (DuplicateKeyException e) {
+            log.debug("告警去重命中唯一约束，跳过本次写入：dedupKey={}", dedupKey);
+            return;
+        }
         log.warn("触发告警：{}", record.getMessage());
     }
 
