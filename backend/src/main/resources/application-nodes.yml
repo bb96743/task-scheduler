@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    # 双节点验证专用：H2 文件库 + AUTO_SERVER，允许多进程共享同一库
+    url: jdbc:h2:file:./data/scheddb;MODE=MySQL;AUTO_SERVER=TRUE;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/h2/schema.sql
+      data-locations: classpath:db/h2/data.sql
