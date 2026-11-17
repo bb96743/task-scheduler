@@ -1,5 +1,6 @@
 package com.intematrix.scheduler.core;
 
+import com.intematrix.scheduler.config.SchedulerProperties;
 import com.intematrix.scheduler.entity.SchedTask;
 import com.intematrix.scheduler.entity.SchedTaskExecution;
 import com.intematrix.scheduler.mapper.SchedTaskExecutionMapper;
@@ -15,9 +16,11 @@ import java.time.temporal.ChronoUnit;
 public class ExecutionFactory {
 
     private final SchedTaskExecutionMapper executionMapper;
+    private final SchedulerProperties properties;
 
-    public ExecutionFactory(SchedTaskExecutionMapper executionMapper) {
+    public ExecutionFactory(SchedTaskExecutionMapper executionMapper, SchedulerProperties properties) {
         this.executionMapper = executionMapper;
+        this.properties = properties;
     }
 
     public SchedTaskExecution create(SchedTask task, String triggerType, Long compensatedFrom) {
@@ -32,6 +35,8 @@ public class ExecutionFactory {
             execution.setFireTime(base.plusSeconds(i));
             execution.setTriggerType(triggerType);
             execution.setStatus("RUNNING");
+            // 记录实际执行节点，双节点排查时能区分是谁跑的
+            execution.setNodeId(properties.getNodeId());
             execution.setShardTotal(task.getShardTotal() == null ? 1 : task.getShardTotal());
             execution.setSuccessShard(0);
             execution.setFailedShard(0);

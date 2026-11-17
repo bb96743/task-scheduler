@@ -103,6 +103,39 @@ class TaskServiceTest {
     }
 
     @Test
+    void runNowShouldDispatchWhenEnabled() {
+        SchedTask task = new SchedTask();
+        task.setId(1L);
+        task.setTaskName("t1");
+        task.setStatus("ENABLED");
+        task.setHandlerName("demoSuccessHandler");
+        com.intematrix.scheduler.entity.SchedTaskExecution execution =
+                new com.intematrix.scheduler.entity.SchedTaskExecution();
+        execution.setId(88L);
+        when(taskMapper.selectById(1L)).thenReturn(task);
+        when(handlerRegistry.exists("demoSuccessHandler")).thenReturn(true);
+        when(executionFactory.create(any(SchedTask.class), any(), any())).thenReturn(execution);
+
+        assertThat(taskService.runNow(1L).getId()).isEqualTo(88L);
+        verify(executionRunner).dispatch(task, execution);
+    }
+
+    @Test
+    void runNowShouldRejectDisabledTask() {
+        SchedTask task = new SchedTask();
+        task.setId(1L);
+        task.setTaskName("t1");
+        task.setStatus("DISABLED");
+        task.setHandlerName("demoSuccessHandler");
+        when(taskMapper.selectById(1L)).thenReturn(task);
+
+        assertThatThrownBy(() -> taskService.runNow(1L))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("停用");
+        verify(executionFactory, never()).create(any(), any(), any());
+    }
+
+    @Test
     void shouldRejectInvalidStatus() {
         assertThatThrownBy(() -> taskService.updateStatus(1L, "WHATEVER"))
                 .isInstanceOf(BizException.class)

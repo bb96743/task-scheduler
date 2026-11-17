@@ -1,6 +1,7 @@
 package com.intematrix.scheduler.core;
 
 import com.intematrix.scheduler.common.BizException;
+import com.intematrix.scheduler.config.SchedulerProperties;
 import com.intematrix.scheduler.entity.SchedTask;
 import com.intematrix.scheduler.entity.SchedTaskExecution;
 import com.intematrix.scheduler.mapper.SchedTaskExecutionMapper;
@@ -23,9 +24,16 @@ class ExecutionFactoryTest {
 
     @Mock
     private SchedTaskExecutionMapper executionMapper;
+    @Mock
+    private SchedulerProperties properties;
 
     @InjectMocks
     private ExecutionFactory factory;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        org.mockito.Mockito.lenient().when(properties.getNodeId()).thenReturn("node-test");
+    }
 
     private SchedTask task() {
         SchedTask task = new SchedTask();
@@ -44,6 +52,7 @@ class ExecutionFactoryTest {
         assertThat(execution.getTriggerType()).isEqualTo("MANUAL");
         assertThat(execution.getStatus()).isEqualTo("RUNNING");
         assertThat(execution.getShardTotal()).isEqualTo(3);
+        assertThat(execution.getNodeId()).isEqualTo("node-test");
     }
 
     @Test

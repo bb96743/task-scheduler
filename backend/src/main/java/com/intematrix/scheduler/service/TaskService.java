@@ -126,6 +126,9 @@ public class TaskService {
     @Transactional
     public SchedTaskExecution runNow(Long id) {
         SchedTask task = getById(id);
+        if (!"ENABLED".equals(task.getStatus())) {
+            throw new BizException(ErrorCode.TASK_DISABLED, task.getTaskName());
+        }
         if (!handlerRegistry.exists(task.getHandlerName())) {
             throw new BizException(ErrorCode.HANDLER_NOT_FOUND, task.getHandlerName());
         }
