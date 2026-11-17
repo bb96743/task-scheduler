@@ -182,7 +182,11 @@ java -jar target/task-scheduler-1.0.0.jar --spring.profiles.active=nodes \
 
 `nodes` profile 使用 H2 文件库 + `AUTO_SERVER=TRUE`。生产环境换成同一 MySQL 即可。
 
-验证结论见 [`docs/双节点实测记录.md`](docs/双节点实测记录.md)。
+两轮实测结果（详见 [`docs/双节点实测记录.md`](docs/双节点实测记录.md)）：
+
+- 常规负载 55 秒：18 条执行记录，**重复 fireTime 0**，两节点 9 : 9 各干一半
+- 高频竞争（每秒触发任务）46 秒：**恰好 46 条**执行记录，重复 fireTime 0，node-a 29 / node-b 17
+- 初始种子节点 node-1 超时未续约，被自动置为 OFFLINE
 
 ---
 
